@@ -45,7 +45,7 @@ export default function ManageRecipes() {
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const url = await upload(file, `recipes/${Date.now()}_${file.name}`)
+    const url = await upload(file)
     setForm((f) => ({ ...f, thumbnailUrl: url }))
   }
 

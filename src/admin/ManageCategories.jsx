@@ -29,7 +29,7 @@ export default function ManageCategories() {
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const url = await upload(file, `categories/${Date.now()}_${file.name}`)
+    const url = await upload(file)
     setThumbnailUrl(url)
   }
 
