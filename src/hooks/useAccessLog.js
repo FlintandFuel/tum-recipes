@@ -17,19 +17,21 @@ export function useAccessLog() {
     })
   }, [])
 
-  const logOpen = (bakerId, bakerName, recipeId, recipeName) =>
-    addDoc(collection(db, 'accessLog'), {
-      bakerId,
-      bakerName,
-      recipeId,
-      recipeName,
-      openedAt: serverTimestamp(),
-      closedAt: null,
-      flagged: false,
-    })
+  return { logs, loading }
+}
 
-  const logClose = (logId) =>
-    updateDoc(doc(db, 'accessLog', logId), { closedAt: serverTimestamp() })
+export function logRecipeOpen(bakerId, bakerName, recipeId, recipeName) {
+  return addDoc(collection(db, 'accessLog'), {
+    bakerId,
+    bakerName,
+    recipeId,
+    recipeName,
+    openedAt: serverTimestamp(),
+    closedAt: null,
+    flagged: false,
+  })
+}
 
-  return { logs, loading, logOpen, logClose }
+export function logRecipeClose(logId) {
+  return updateDoc(doc(db, 'accessLog', logId), { closedAt: serverTimestamp() })
 }

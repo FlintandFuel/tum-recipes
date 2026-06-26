@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRecipes } from '../hooks/useRecipes'
 import { useCategories } from '../hooks/useCategories'
 import { useImageUpload } from '../hooks/useImageUpload'
 import Spinner from '../components/Spinner'
-import { Plus, Pencil, Trash2, X, Save } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Save, Download, Upload } from 'lucide-react'
 
 const emptyRecipe = {
   name: '',
@@ -22,6 +22,8 @@ export default function ManageRecipes() {
   const { upload, uploading } = useImageUpload()
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyRecipe)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef(null)
 
   const openNew = () => {
     setForm(emptyRecipe)
@@ -83,6 +85,62 @@ export default function ManageRecipes() {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this recipe?')) return
     await deleteRecipe(id)
+  }
+
+  const handleExport = () => {
+    const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c.name]))
+    const exportData = recipes.map((r) => ({
+      name: r.name || '',
+      category: categoryMap[r.categoryId] || '',
+      ingredients: r.ingredients || [],
+      steps: r.steps || [],
+      notes: r.notes || '',
+      yield: r.yield || '',
+      allergens: r.allergens || [],
+      thumbnailUrl: r.thumbnailUrl || '',
+    }))
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `recipes-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      if (!Array.isArray(data)) throw new Error('JSON must be an array of recipes')
+
+      const categoryMap = Object.fromEntries(categories.map((c) => [c.name.toLowerCase(), c.id]))
+
+      let count = 0
+      for (const item of data) {
+        const categoryId = categoryMap[(item.category || '').toLowerCase()] || ''
+        await addRecipe({
+          name: item.name || 'Untitled',
+          categoryId,
+          thumbnailUrl: item.thumbnailUrl || '',
+          ingredients: Array.isArray(item.ingredients) ? item.ingredients : [],
+          steps: Array.isArray(item.steps) ? item.steps : [],
+          notes: item.notes || '',
+          yield: item.yield || '',
+          allergens: Array.isArray(item.allergens) ? item.allergens : [],
+        })
+        count++
+      }
+      alert(`Imported ${count} recipe${count === 1 ? '' : 's'} successfully.`)
+    } catch (err) {
+      alert(`Import failed: ${err.message}`)
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   if (loading) return <Spinner />
@@ -236,15 +294,37 @@ export default function ManageRecipes() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="text-xl font-bold">Recipes ({recipes.length})</h2>
-        <button
-          onClick={openNew}
-          className="px-4 py-2 bg-wheat text-charcoal font-semibold rounded-xl hover:bg-wheat-dark transition-colors flex items-center gap-1.5 text-sm cursor-pointer"
-        >
-          <Plus size={16} />
-          Add Recipe
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            disabled={recipes.length === 0}
+            className="px-3 py-2 border border-stone-light/50 text-charcoal rounded-xl hover:bg-warm-gray transition-colors flex items-center gap-1.5 text-sm disabled:opacity-50 cursor-pointer"
+          >
+            <Download size={16} />
+            Export
+          </button>
+          <label className={`px-3 py-2 border border-stone-light/50 text-charcoal rounded-xl hover:bg-warm-gray transition-colors flex items-center gap-1.5 text-sm cursor-pointer ${importing ? 'opacity-50' : ''}`}>
+            <Upload size={16} />
+            {importing ? 'Importing…' : 'Import'}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              disabled={importing}
+              className="hidden"
+            />
+          </label>
+          <button
+            onClick={openNew}
+            className="px-4 py-2 bg-wheat text-charcoal font-semibold rounded-xl hover:bg-wheat-dark transition-colors flex items-center gap-1.5 text-sm cursor-pointer"
+          >
+            <Plus size={16} />
+            Add Recipe
+          </button>
+        </div>
       </div>
 
       {recipes.length === 0 ? (

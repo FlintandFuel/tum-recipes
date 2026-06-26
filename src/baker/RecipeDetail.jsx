@@ -1,19 +1,18 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { useAccessLog } from '../hooks/useAccessLog'
+import { logRecipeOpen, logRecipeClose } from '../hooks/useAccessLog'
 import Spinner from '../components/Spinner'
 import { X, AlertTriangle } from 'lucide-react'
-import { useState } from 'react'
 
 export default function RecipeDetail({ baker }) {
   const { recipeId } = useParams()
   const navigate = useNavigate()
-  const { logOpen, logClose } = useAccessLog()
   const logIdRef = useRef(null)
   const [recipe, setRecipe] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     return onSnapshot(doc(db, 'recipes', recipeId), (snap) => {
@@ -21,32 +20,37 @@ export default function RecipeDetail({ baker }) {
         setRecipe({ id: snap.id, ...snap.data() })
       }
       setLoading(false)
+    }, (err) => {
+      console.error('RecipeDetail error:', err)
+      setError(err.message)
+      setLoading(false)
     })
   }, [recipeId])
 
   useEffect(() => {
     if (!recipe || !baker) return
 
-    logOpen(baker.id, baker.name, recipe.id, recipe.name).then((docRef) => {
-      logIdRef.current = docRef.id
-    })
+    logRecipeOpen(baker.id, baker.name, recipe.id, recipe.name)
+      .then((docRef) => { logIdRef.current = docRef.id })
+      .catch((err) => console.error('Access log write error:', err))
 
     return () => {
       if (logIdRef.current) {
-        logClose(logIdRef.current)
+        logRecipeClose(logIdRef.current)
       }
     }
   }, [recipe?.id, baker?.id])
 
   const handleClose = useCallback(() => {
     if (logIdRef.current) {
-      logClose(logIdRef.current)
+      logRecipeClose(logIdRef.current)
       logIdRef.current = null
     }
     navigate(-1)
-  }, [logClose, navigate])
+  }, [navigate])
 
   if (loading) return <Spinner />
+  if (error) return <p className="text-center text-red-500 py-8">Error: {error}</p>
   if (!recipe) return <p className="text-center text-stone py-8">Recipe not found.</p>
 
   return (

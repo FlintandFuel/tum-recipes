@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  collection, query, orderBy, onSnapshot, where,
+  collection, query, orderBy, onSnapshot,
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
@@ -10,11 +10,14 @@ export function useRecipes(categoryId = null) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const constraints = [orderBy('name')]
-    if (categoryId) constraints.unshift(where('categoryId', '==', categoryId))
-    const q = query(collection(db, 'recipes'), ...constraints)
+    const q = query(collection(db, 'recipes'), orderBy('name'))
     return onSnapshot(q, (snap) => {
-      setRecipes(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      let list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      if (categoryId) list = list.filter((r) => r.categoryId === categoryId)
+      setRecipes(list)
+      setLoading(false)
+    }, (err) => {
+      console.error('useRecipes error:', err)
       setLoading(false)
     })
   }, [categoryId])
