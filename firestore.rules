@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Admin: authenticated users can read/write everything
+    function isAdmin() {
+      return request.auth != null;
+    }
+
+    // Recipes: anyone can read, only admin can write
+    match /recipes/{recipeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Categories: anyone can read, only admin can write
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Bakers: anyone can read, only admin can write
+    match /bakers/{bakerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Access log: anyone can create and update (for logging), only admin can read all
+    match /accessLog/{logId} {
+      allow create: if true;
+      allow update: if true;
+      allow read: if isAdmin();
+    }
+  }
+}
